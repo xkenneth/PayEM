@@ -31,14 +31,14 @@ def mail(to, subject, text, attach=None):
    mailServer.ehlo()
    mailServer.starttls()
    mailServer.ehlo()
-   mailServer.login(gmail_user, gmail_pwd)
+   mailServer.login(gmail_user, gmail_password)
    mailServer.sendmail(gmail_user, to, msg.as_string())
    # Should be mailServer.quit(), but that crashes...
    mailServer.close()
 
 if __name__ == '__main__':
    
-   mail("xkenneth@gmail.com",
+   mail(test_email_addr,
         "Test Subject!",
         "Test Message.",
         )
