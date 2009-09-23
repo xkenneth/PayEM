@@ -5,8 +5,8 @@ from email.MIMEText import MIMEText
 from email import Encoders
 import os
 
-gmail_user = "username"
-gmail_pwd = "password"
+
+from config import gmail_user, gmail_password
 
 def mail(to, subject, text, attach=None):
    msg = MIMEMultipart()
@@ -36,6 +36,9 @@ def mail(to, subject, text, attach=None):
    # Should be mailServer.quit(), but that crashes...
    mailServer.close()
 
-mail("xkenneth@gmail.com",
-   "Your power's back on!",
-   "This is an automatically generated email to inform you that power and network infrastructure have returned to your home!")
+if __name__ == '__main__':
+   
+   mail("xkenneth@gmail.com",
+        "Test Subject!",
+        "Test Message.",
+        )
