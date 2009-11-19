@@ -1,22 +1,9 @@
-import datetime
+import mx.DateTime
 import sys
 from pybase import Basecamp
-import pdb
+from config import *
+from helper import *
 
-def people_keys(bc):
-    keys = {}
-    
-    for person in bc.all_people():
-        keys[person.id] = person.first_name + ' ' + person.last_name
-        
-    return keys
-
-def project_keys(bc):
-    keys = {}
-    for project in bc.get_projects():
-        keys[project.id] = project.name
-
-    return keys
 
 
 def get_date(name=''):
@@ -26,27 +13,30 @@ def get_date(name=''):
     return datetime.date(int(year),int(month),int(day))
 
 
-basecamp_url = raw_input('BaseCamp URL.')
-username = raw_input('BaseCamp UserName:')
-password = raw_input('BaseCamp PassWord:')
+conn = Basecamp(bc_url,bc_user,bc_pwd)
 
-conn = Basecamp(basecamp_url,username,password)
-
-our_people = people_keys(conn)
-our_projects = project_keys(conn)
+our_people = conn.people_id_map()
+our_projects = conn.project_id_map()
 
 #for project in conn.get_projects():
 #    print project.id
 
-entries = conn.get_project_time(3335163)
-
 all_entries = []
 
-start_date = get_date('Start')
-print "Start date is",start_date
+today = mx.DateTime.now()
 
-end_date = get_date('End Date')
-print "End date is",end_date
+#the previous sunday
+end_date = previous_sunday(today)
+
+#the second preceeding monday
+start_date = two_weeks_ago(end_date)
+
+#reset to the end of the day
+end_date = end_day(end_date)
+
+#reset to the beginning of that day
+start_date = start_day(start_date)
+
 
 if start_date > end_date:
     print "Error, start date is after end date."
@@ -74,6 +64,3 @@ for project in summary.keys():
     for person in summary[project].keys():
         if summary[project][person] > 0.0:
             print "%s %f" % (our_people[person], summary[project][person])
-        
-
-

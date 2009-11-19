@@ -5,7 +5,6 @@ from email.MIMEText import MIMEText
 from email import Encoders
 import os
 
-
 from config import gmail_user, gmail_password
 
 def mail(to, subject, text, attach=None):
