@@ -1,0 +1,15 @@
+James Jones's hours between 2009-10-05 and 2009-10-18
+1.00 Hours. Surface System on 2009-10-16
+8.00 Hours. Surface System on 2009-10-16
+6.00 Hours. Surface System on 2009-10-14
+3.00 Hours. Surface System on 2009-10-13
+5.00 Hours. Surface System on 2009-10-13
+1.00 Hours. Surface System on 2009-10-13
+9.00 Hours. Surface System on 2009-10-12
+9.00 Hours. Surface System on 2009-10-09
+2.00 Hours. Filtering Mark II on 2009-10-05
+2.00 Hours. VeriDAQ - Project Midland on 2009-10-14
+5.00 Hours. Teledrill on 2009-10-06
+6.00 Hours. Teledrill on 2009-10-05
+Total Hours: 57.00
+

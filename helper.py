@@ -23,6 +23,11 @@ def start_day(dt):
 def end_day(dt):
     return dt + RelativeDateTime(hours=23-dt.hour,minutes=59-dt.minute,seconds=59-dt.second)
 
+def get_date(name=''):
+    date_str = raw_input('Enter %s Date (YYYY-MM-DD) ' % name)
+    year, month, day = date_str.split('-')
+    return mx.DateTime.DateTime(int(year),int(month),int(day))
+
 ### BaseCamp Helpers ###x
 
     

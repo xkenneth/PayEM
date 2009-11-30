@@ -1,30 +1,43 @@
 #!/usr/bin/env python
 
+### Imports ###
 import mx.DateTime
 import sys
 from pybase import Basecamp
 from config import *
 from helper import *
+import pdb
+from optparse import OptionParser
 
 from mail import mail
 
 import os
 
-def get_date(name=''):
-    date_str = raw_input('Enter %s Date (YYYY-MM-DD) ' % name)
-    year, month, day = date_str.split('-')
-    return mx.DateTime.DateTime(int(year),int(month),int(day))
+parser = OptionParser()
 
-while(1):
-    answer = raw_input("Use today's date? (y/n)")
-    if answer == 'y':
-        process_date = mx.DateTime.now()
-        break
-    elif answer == 'n':
-        process_date = get_date()
-        break
-    else:
-        pass
+parser.add_option('-d',"--defaults",dest="defaults",action="store_true",
+                  help="use defaults",default=False)
+
+options, args = parser.parse_args()
+
+print options
+
+if not options.defaults:
+
+    while(1):
+        answer = raw_input("Use today's date? (y/n)")
+        answer = answer.lower()
+        if answer == 'y':
+            process_date = mx.DateTime.now()
+            break
+        elif answer == 'n':
+            process_date = get_date()
+            break
+        else:
+            pass
+
+else:
+    process_date = mx.DateTime.now()
 
 #report repo
 repo_name = "%s_%s_%s" % (process_date.year,process_date.month,process_date.day)
@@ -33,8 +46,6 @@ repo_dir = os.path.join(payroll_repository,repo_name)
 #create the repo for this run
 if not debug:
     os.mkdir(repo_dir)
-
-
 
 #for project in conn.get_projects():
 #    print project.id
@@ -51,6 +62,10 @@ end_date = end_day(end_date)
 #reset to the beginning of that day
 start_date = start_day(start_date)
 
+if start_date > end_date:
+    print "Error, start date is after end date."
+    sys.exit(0)
+
 #program starting
 print "ProcessDate:", process_date
 print "Invoice Period:"
@@ -59,111 +74,125 @@ print "End:",end_date
 
 
 #connect to basecamp
+print "Connecting to Basecamp"
+print ""
+
 conn = Basecamp(bc_url,bc_user,bc_pwd)
 
-our_people = conn.people_id_map(our_company)
-our_projects = conn.project_id_map()
+people = conn.people_id_map(our_company)
 
+print "ID:Name"
+for id in people:
+    print "%d:%s" % (id,people[id])
+print ""
 
-if start_date > end_date:
-    print "Error, start date is after end date."
-    sys.exit(0)
+projects = conn.project_id_map()
 
-all_entries = []
-summary = {}
-people_summary = {}
+print "ID:Project"
+for id in projects:
+    print "%d:%s" % (id,projects[id])
 
-for project in our_projects:
-    #this could run over hours if we de-activate a project
-    #project_data = conn.get_project(project)
-    #if project_data.status == 'active':
-    
-    print "Retrieving data for %s" % our_projects[project]
-    
-    all_entries.extend(conn.get_project_time(project))
-    
-    summary[project] = {}
-    
-    
-    for person in our_people:
-        summary[project][person] = 0.0
+#get all of the time entries
+#a hash {project id:[time entires]}
+time_entries = dict([(id,[]) for id in projects])
 
-for people in our_people:
-    people_summary[people] = {}
-    for project in our_projects:
-        people_summary[people][project] = 0.0
-    
-
-for entry in all_entries:
-    if entry.date >= start_date and entry.date <= end_date:
+#for each project id
+for project in projects:
+    print "Retrieving data for %s" % projects[project]
+    #get ALL the entires for the project
+    entries = conn.get_project_time(project)
+    for entry in entries:
+        print "%s, %s, %3.2f Hours, on %s." % (projects[entry.project_id].upper(),people[entry.person_id],entry.hours,entry.date.date)
+    #for entry in entries.data:
         
-        summary[entry.project_id][entry.person_id] += entry.hours
+    #filter them according to the start and end date
+    for entry in entries:
+        if entry.date >= start_date and entry.date <= end_date:
+            #print "%s, %s, %3.2f Hours, on %s." % (projects[entry.project_id].upper(),people[entry.person_id],entry.hours,entry.date.date)
+            time_entries[project].append(entry)
+        else:
+            pass
+            #print "REJECTED: %s, %s, %3.2f Hours on %s." % (projects[entry.project_id].upper(),people[entry.person_id],entry.hours, entry.date.date)
 
-        people_summary[entry.person_id][entry.project_id] += entry.hours
-        #print entry.hours, entry.date, our_people[entry.person_id], our_projects[entry.project_id]
+#a hash {employee_id:[time entries]}
+hours_by_employee = dict([(id,[]) for id in people])
 
-#write the log files
+#for all the entries
+for project in time_entries:
+    #for each project
+    for entry in time_entries[project]:
+        #assign hours to the individual employees
+        hours_by_employee[entry.person_id].append(entry)
 
-for project in summary.keys():
+# print a simple summary for each employee and calculate their total hours
+total_hours_by_employee = dict([(id,0.0) for id in people])
+
+for id in hours_by_employee:
+    print "Employee: %s" % people[id]
+    for entry in hours_by_employee[id]:
+        print "%3.2f Hours. %s on %s" % (entry.hours, projects[entry.project_id], entry.date.date)
+        #sum
+        total_hours_by_employee[id] += entry.hours
+    print "Total: %d" % total_hours_by_employee[id]
+
+
+# send the emails! and write the log files
+for person in people:
+
+    #write the log file
+
+    log_text = ""
     
-    project_summary_path = os.path.join(repo_dir,our_projects[project].replace(' - ','_').replace(' ','_'))
-    
-    if not debug:
-        summary_file = open(project_summary_path,'w+')
-    
-    
-    summary_body = "Project %s\n\n" % our_projects[project]
-    
-    for person in summary[project]:
-        if summary[project][person] > 0.0:
-            summary_body += "%s\t%s\n" % (our_people[person], summary[project][person])
+    log_text += "%s's hours between %s and %s\n" % (people[person],start_date.date,end_date.date)
 
-    if not debug:
-        summary_file.write(summary_body)
-
-#send the emails
-print people_summary
-
-
-
-for person in people_summary:
     body = ""
     
-    print our_people[person]
-    body += "%s,\n" % our_people[person]
+    print people[person]
+    body += "%s,\n" % people[person]
     
     body += """
 
-We're processing payroll! Here's your work summary for the following dates:
+How are you today? I'm quite well, thank you.
 
-Start Date: %s
+Well now then .. we're processing payroll! You're about to get paid for the hours you worked between %s and %s.
 
-End Date: %s
-
-
-
-""" % (str(start_date), str(end_date))
+""" % (start_date.date, end_date.date)
     
-    for project in people_summary[person]:
-        if people_summary[person][project] > 0.0:
-            body += "%s: %f Hours.\n" % (our_projects[project],people_summary[person][project])
+    for entry in hours_by_employee[person]:
+        body += "%3.2f Hours. %s on %s\n" % (entry.hours, projects[entry.project_id], entry.date.date)
+        log_text += "%3.2f Hours. %s on %s\n" % (entry.hours, projects[entry.project_id], entry.date.date)
+            
+    
+    #add the total
+    
+    body += 'Total Hours: %3.2f\n\n' % total_hours_by_employee[person]
+    log_text += 'Total Hours: %3.2f\n\n' % total_hours_by_employee[person]
 
-    body += """
 
-If this is correct, please let Ken know! If it's not, fix it, and then let Ken know!
+    body += """If this is correct, please reply letting us know! If it's not, please let us know what's wrong!
 
 Thanks!
-Erdos Miller
+EM
 
 """
     
     person_data = conn.get_person(person)
     email_address = person_data.email_address
     
-    print "Sending email to %s" % our_people[person]
-    
     if debug:
         print email_address
         print body
+        print log_text
+        # for person in people_summary:
+#             for project in people_summary[person]:
+#                 if people_summary[person][project] > 0.0:
+#                     print "%s: %3.2f Hours.\n" % (our_projects[project],people_summary[person][project])
+        
+    
     else:
+        print "Sending email to %s" % people[person]
+        f = open(os.path.join(repo_dir,people[person].strip().replace(' ',''))+'.txt','w')
+        f.write(log_text)
+        f.close()
+        
         mail(email_address, "Erdos Miller - Payroll - Please Verify", body)
